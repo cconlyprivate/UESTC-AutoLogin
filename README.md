@@ -87,6 +87,26 @@ python -m venv .venv
 
 ## 五、如何设置开机自启
 
+**最简单：一条命令**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install_task.ps1
+```
+
+它会自动读取「当前用户」和「项目所在路径」，生成任务定义并导入，不用手改任何东西。
+
+卸载：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install_task.ps1 -Uninstall
+```
+
+任务实际执行的是 `wscript.exe run_hidden.vbs`。这个启动器会优先使用项目里的 `.venv`，找不到就用 PATH 上的 `pythonw.exe`，所以任务本身不依赖固定的解释器路径，把项目换个目录重新跑一次安装脚本即可。
+
+---
+
+**手动方式（想自己建任务的话）**
+
 用 Windows 自带的「任务计划程序」，不需要管理员权限。`Win+R` 输入 `taskschd.msc`，在右侧点「创建任务」。
 
 **常规**
