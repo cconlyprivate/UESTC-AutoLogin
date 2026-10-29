@@ -144,3 +144,5 @@ powershell -ExecutionPolicy Bypass -File install_task.ps1 -Uninstall
 保存后右键任务点「运行」，看 `logs` 目录里是否出现新日志，确认配置生效。
 
 本仓库也附带了 `UESTC-Portal.xml`（已包含上面三个触发器），可以直接在「任务计划程序」里用「导入任务」加载。导入前把文件里的 `YOUR-PC\YOUR-USERNAME` 改成你自己的 `计算机名\用户名`。
+
+对于xml文件一键导入的时候有一个exe文件如果无法兼容的话，那就可以用你的电脑上的agent可以排查可以导入哪一个自动运行的脚本使用。
