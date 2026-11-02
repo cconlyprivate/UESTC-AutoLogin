@@ -4,7 +4,7 @@
 
 行为约定
 --------
-- 后台线程，每 N 秒扫一次浏览器窗口，命中就关掉**那一个标签**（不关浏览器、不碰别的标签）
+- 后台线程，每 N 秒扫一次浏览器窗口，根据 mode 关闭认证窗口或认证标签
 - 最多监视 M 秒：这段时间里页面一直没弹出来，就安静地放弃，不报错
 - 同一时刻只跑一个监视线程（重复调用会被忽略）
 - 认不出页面就什么都不做
@@ -55,7 +55,7 @@ def close_portal_page(timeout: float = 25.0, mode: str = "window") -> list[str]:
     actions = []
     for line in (proc.stdout or "").splitlines():
         line = line.strip()
-        if line.startswith(("CLOSE_TAB", "CLOSE_CTRLW", "FAIL")):
+        if line.startswith(("CLOSE_TAB", "CLOSE_WINDOW", "CLOSE_CTRLW", "FAIL")):
             actions.append(line.replace("\t", " | "))
     return actions
 

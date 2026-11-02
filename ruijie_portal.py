@@ -12,7 +12,6 @@
     python ruijie_portal.py --status     # 只看通不通
     python ruijie_portal.py --probe      # 只抓门户跳转参数，不提交账号
     python ruijie_portal.py --login      # 完整登录一次
-    python ruijie_portal.py --loop       # 常驻守护（掉线自动重登）
 """
 
 from __future__ import annotations
@@ -24,6 +23,9 @@ import re
 import sys
 import time
 import urllib.parse
+
+if sys.version_info < (3, 10):
+    raise SystemExit("本项目需要 Python 3.10 或以上版本，请升级 Python 后重新运行。")
 
 import requests
 
@@ -355,15 +357,27 @@ def login_once(username: str, password: str, verbose: bool = True,
              f"nasIp={ctx.get('nasIp')} page={ctx.get('customPageId')}")
     cas_login(s, ctx, username, password)
     res = user_online(s, ctx)
-    data = res.get("data") or {}
     if verbose:
         _log(f"userOnline: {json.dumps(res, ensure_ascii=False)[:300]}")
-    # userOnline 里的 data.online 才是权威判断；getOnlineUserInfo 有时返回过期视图
-    online = bool(data.get("online"))
+    # 门户放行可能有延迟，必须复检外网，不能仅凭接口 online 就退出。
+    online = wait_until_online()
     if not online and verbose:
-        info = online_info(s, ctx)
-        _log(f"onlineInfo 参考: {info.get('result')} {info.get('message') or ''}")
+        _log("登录后 15 秒内仍未通过 HTTP 204 外网复检，将由调用方重试")
     return online
+
+
+def wait_until_online(timeout: float = 15.0, interval: float = 1.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        if is_online(timeout=min(2.0, remaining / len(PROBE_URLS))):
+            return True
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        time.sleep(min(interval, remaining))
 
 
 def wait_offline(retries: int = 3) -> None:
@@ -373,25 +387,6 @@ def wait_offline(retries: int = 3) -> None:
         time.sleep(3)
 
 
-def loop(username: str, password: str, interval: int = 30) -> None:
-    _log("守护启动")
-    while True:
-        try:
-            if is_online():
-                time.sleep(interval)
-                continue
-            _log("检测到断网，开始登录")
-            ok = login_once(username, password)
-            if ok:
-                _log("登录成功")
-            else:
-                _log("登录流程跑完但未确认在线，30s 后重试")
-                time.sleep(30)
-        except Exception as exc:                      # noqa: BLE001
-            _log(f"出错: {exc}")
-            time.sleep(20)
-
-
 # ---------------------------------------------------------------- CLI
 
 def main(argv: list[str]) -> int:
@@ -399,10 +394,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--status", action="store_true", help="只检查是否在线")
     ap.add_argument("--probe", action="store_true", help="只抓门户跳转参数，不提交账号")
     ap.add_argument("--login", action="store_true", help="登录一次")
-    ap.add_argument("--loop", action="store_true", help="常驻守护")
     ap.add_argument("-u", "--userid", help="宽带账号（手机号）")
     ap.add_argument("-p", "--password", help="宽带密码")
-    ap.add_argument("--interval", type=int, default=30)
     ap.add_argument("--url", help="已知的门户跳转 URL（跳过自动探测）")
     args = ap.parse_args(argv)
 
@@ -426,14 +419,10 @@ def main(argv: list[str]) -> int:
             return 1
 
     if not args.userid or not args.password:
-        ap.error("--login / --loop 需要 -u 和 -p")
+        ap.error("--login 需要 -u 和 -p")
 
     if args.login:
         return 0 if login_once(args.userid, args.password, portal_url=args.url) else 2
-
-    if args.loop:
-        loop(args.userid, args.password, args.interval)
-        return 0
 
     ap.print_help()
     return 0
@@ -441,3 +430,4 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+

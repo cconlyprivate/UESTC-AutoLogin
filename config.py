@@ -22,15 +22,9 @@ login_options = {
     # ---------- 抢网（一次性：连上就退出） ----------
     'fast_interval': 1,            # 抢网阶段每几秒探测一次
     'startup_timeout': 180,        # 最多抢多久；到点还没连上就退出进程
-    'exit_after_connect': True,    # True=连上即退出；False=常驻并持续处理掉线重连
-    'check_interval': 20,          # 常驻模式下在线时的探测间隔（秒）
-    'retry_interval': 15,          # 常驻模式下登录失败的重试间隔（秒）
 
     # ---------- 认证页自动关闭 ----------
     'close_portal_page': True,     # 是否自动关闭弹出的认证页
     'close_portal_interval': 2,    # 每隔几秒扫描一次浏览器窗口
     'close_portal_timeout': 30,    # 连上后最多再等多久（秒）
-    # 距离上次"从睡眠/休眠恢复"多少秒之内算作唤醒（否则按刚开机处理）
-    'resume_window': 300,
-    'close_portal_window': 'auto',  # auto=没有其它浏览器窗口才整窗关；window=一律整窗；never=只关标签
 }

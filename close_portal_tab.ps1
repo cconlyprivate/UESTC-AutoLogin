@@ -1,4 +1,4 @@
-﻿# 关闭"网络认证门户页"
+﻿﻿# 关闭"网络认证门户页"
 #
 # 识别依据（命中任一）：
 #   1) 浏览器地址栏 URL 匹配门户地址（110.184.24.61 / 10.253.0.235 ...）
@@ -6,8 +6,8 @@
 #   3) 任一标签页标题匹配同一组词（后台标签也能认）
 #
 # 关闭粒度 -CloseWindow：
-#   auto   （默认）除它之外没有别的浏览器窗口 -> 整窗关掉；
-#                  已经有别的浏览器窗口在开着      -> 只关这一个标签
+#   auto   （默认）仅有一个浏览器窗口、一个认证标签 -> 整窗关掉；
+#                  有其他窗口/标签，或标签数量未知 -> 只关认证标签
 #   window 一律整窗关
 #   never  一律只关标签
 #
@@ -15,7 +15,7 @@
 
 param(
     [string]$UrlPattern    = '110\.184\.24\.61|10\.253\.0\.235|aaa\.uestc\.edu\.cn|/cas-sso|srun_portal',
-    [string]$TitlePattern  = '连网认证|电子科技大学|上网登录|登录网络|网络登录|上网认证|锐捷认证',
+    [string]$TitlePattern  = '连网认证|上网登录|登录网络|网络登录|上网认证|锐捷认证',
     [string]$ProcessFilter = 'chrome|msedge|edge|browser|firefox|opera|brave|360|sogou|qq|2345|maxthon|liebao|\buc\b',
     [ValidateSet('auto', 'window', 'always', 'never')][string]$CloseWindow = 'auto',
     [switch]$List,
@@ -95,7 +95,7 @@ foreach ($hv in [PortalWin32]::Visible()) {
     try { $procName = (Get-Process -Id ([PortalWin32]::Pid($hv)) -ErrorAction Stop).ProcessName } catch { continue }
     if (-not $All -and $procName -notmatch $ProcessFilter) { continue }
 
-    $url = $null; $tabHit = $null; $tabName = ''; $tabCount = 0
+    $url = $null; $tabHit = $null; $selectedTab = $null; $tabName = ''; $tabCount = 0
     try {
         $root = $AE::FromHandle($h)
         foreach ($e in @($root.FindAll($TS::Descendants, $editCond))) {
@@ -106,12 +106,22 @@ foreach ($hv in [PortalWin32]::Visible()) {
         $tabCount = $tabs.Count
         foreach ($tab in $tabs) {
             try { $nm = $tab.Current.Name } catch { continue }
-            if ($nm -match $TitlePattern) { $tabHit = $tab; $tabName = $nm; break }
+            try {
+                if ($tab.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected) {
+                    $selectedTab = $tab
+                }
+            } catch { }
+            if (-not $tabHit -and $nm -match $TitlePattern) { $tabHit = $tab; $tabName = $nm }
+
         }
     } catch { }
 
     $why = ''
-    if ($url) { $why = 'url' }
+    if ($url) {
+        $why = 'url'
+        # 地址栏属于当前标签；优先关闭它，避免命中另一个后台同名标签。
+        if ($selectedTab) { $tabHit = $selectedTab }
+    }
     elseif ($title -match $TitlePattern) { $why = 'win-title' }
     elseif ($tabHit) { $why = 'tab-name' }
 
@@ -138,7 +148,7 @@ foreach ($t in @($targets | Where-Object { $_.Matched })) {
 
     $action = 'tab'
     if ($CloseWindow -in @('window', 'always')) { $action = 'window' }
-    elseif ($CloseWindow -eq 'auto' -and $others -le 0) { $action = 'window' }
+    elseif ($CloseWindow -eq 'auto' -and $others -le 0 -and $t.TabCount -eq 1) { $action = 'window' }
 
     if ($List) {
         "LIST`t$($t.Proc)`t$shown`t($($t.Why))`ttabs=$($t.TabCount)`ttab=[$($t.TabName)]`tothers=$others`t->$action"
@@ -168,3 +178,4 @@ foreach ($t in @($targets | Where-Object { $_.Matched })) {
 
 if ($hits -eq 0) { "NONE`twindows=$winTotal" }
 exit 0
+

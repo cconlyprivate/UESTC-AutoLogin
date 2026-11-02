@@ -36,10 +36,11 @@ def main(argv: list[str]) -> int:
     ok = ruijie_portal.login_once(user.user_id, user.passwd, portal_url=portal_url)
     print("RESULT:", "online" if ok else "failed")
     if ok and login_options.get("close_portal_page", True) and close_portal_page:
-        for line in close_portal_page():
+        for line in close_portal_page(mode="auto"):
             print("   ", line)
     return 0 if ok else 2
 
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+
